@@ -1,0 +1,22 @@
+BCN_baseline：
+
+train:
+--phase train --dataset_name train5000_test4scene --batch_size 4
+
+test:
+--phase test_IOU --dataset_name train5000_test4scene --batch_size 1 --checkpoint_dir ./checkpoint/train5000_test4scene_4_256
+
+demo:
+--phase demo --dataset_name train5000_test4scene --batch_size 1 --checkpoint_dir ./checkpoint/train5000_test4scene_4_256
+
+
+BCN_bg_sub：
+train:
+--phase train --dataset_name bg_sub_color --batch_size 4
+
+test:
+--phase test_IOU --dataset_name bg_sub_color --batch_size 1 --checkpoint_dir ./checkpoint/bg_sub_color_4_256
+
+
+
+

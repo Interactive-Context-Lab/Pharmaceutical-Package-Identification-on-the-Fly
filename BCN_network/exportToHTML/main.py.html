@@ -1,0 +1,374 @@
+<html>
+<head>
+<title>main.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.ln { color: #f8f8f2; font-weight: normal; font-style: normal; }
+.s0 { color: rgb(102,217,239); font-style: italic; }
+.s1 { color: rgb(248,248,242); }
+.s2 { color: rgb(249,38,114); }
+.s3 { color: rgb(0,128,128); }
+.s4 { color: rgb(204,120,50); }
+.s5 { color: rgb(174,129,255); }
+.s6 { color: rgb(117,113,94); }
+</style>
+</head>
+<BODY BGCOLOR="#272822">
+<TABLE CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#c0c0c0" >
+<TR><TD><CENTER>
+<FONT FACE="Arial, Helvetica" COLOR="#000000">
+main.py</FONT>
+</center></TD></TR></TABLE>
+<pre>
+<span class="s0">import </span><span class="s1">argparse 
+</span><span class="s0">import </span><span class="s1">os 
+</span><span class="s0">import </span><span class="s1">scipy.misc 
+</span><span class="s0">import </span><span class="s1">numpy </span><span class="s0">as </span><span class="s1">np 
+ 
+</span><span class="s0">from </span><span class="s1">model </span><span class="s0">import </span><span class="s1">pix2pix 
+</span><span class="s0">import </span><span class="s1">tensorflow </span><span class="s0">as </span><span class="s1">tf 
+</span><span class="s0">import </span><span class="s1">cv2 
+</span><span class="s0">import </span><span class="s1">math 
+ 
+parser </span><span class="s2">= </span><span class="s1">argparse.ArgumentParser(description</span><span class="s2">=</span><span class="s3">''</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--dataset_name'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'dataset_name'</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s3">'facades'</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'name of the dataset'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--epoch'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'epoch'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">200</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'# of epoch'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--batch_size'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'batch_size'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">1</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'# images in batch'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--train_size'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'train_size'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">1e8</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'# images used to train'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--load_size'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'load_size'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">286</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'scale images to this size'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--fine_size'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'fine_size'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">256</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'then crop to this size'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--ngf'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'ngf'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">64</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'# of gen filters in first conv layer'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--ndf'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'ndf'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">64</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'# of discri filters in first conv layer'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--input_nc'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'input_nc'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">3</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'# of input image channels'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--output_nc'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'output_nc'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">3</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'# of output image channels'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--niter'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'niter'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">200</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'# of iter at starting learning rate'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--lr'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'lr'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">float</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">0.0002</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'initial learning rate for adam'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--beta1'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'beta1'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">float</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">0.5</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'momentum term of adam'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--flip'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'flip'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">bool</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s0">True</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'if flip the images for data argumentation'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--which_direction'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'which_direction'</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s3">'AtoB'</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'AtoB or BtoA'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--phase'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'phase'</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s3">'train'</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'train, test'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--save_epoch_freq'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'save_epoch_freq'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">50</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'save a model every save_epoch_freq epochs (does not overwrite previously saved models)'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--save_latest_freq'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'save_latest_freq'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">5000</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'save the latest model every latest_freq sgd iterations (overwrites the previous latest model)'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--print_freq'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'print_freq'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">int</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">50</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'print the debug information every print_freq iterations'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--continue_train'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'continue_train'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">bool</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s0">False</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'if continue training, load the latest model: 1: true, 0: false'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--serial_batches'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'serial_batches'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">bool</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s0">False</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'f 1, takes images in order to make batches, otherwise takes them randomly'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--serial_batch_iter'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'serial_batch_iter'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">bool</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s0">True</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'iter into serial image list'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--checkpoint_dir'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'checkpoint_dir'</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s3">'./checkpoint'</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'models are saved here'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--sample_dir'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'sample_dir'</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s3">'./sample'</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'sample are saved here'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--test_dir'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'test_dir'</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s3">'./test'</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'test sample are saved here'</span><span class="s1">) 
+parser.add_argument(</span><span class="s3">'--L1_lambda'</span><span class="s4">, </span><span class="s1">dest</span><span class="s2">=</span><span class="s3">'L1_lambda'</span><span class="s4">, </span><span class="s1">type</span><span class="s2">=</span><span class="s1">float</span><span class="s4">, </span><span class="s1">default</span><span class="s2">=</span><span class="s5">100.0</span><span class="s4">, </span><span class="s1">help</span><span class="s2">=</span><span class="s3">'weight on L1 term in objective'</span><span class="s1">) 
+ 
+args </span><span class="s2">= </span><span class="s1">parser.parse_args() 
+ 
+</span><span class="s0">def </span><span class="s1">GetAreaOfPolyGon(points)</span><span class="s2">:</span><span class="s1"> 
+    area </span><span class="s2">= </span><span class="s5">0</span><span class="s1"> 
+    </span><span class="s0">if </span><span class="s1">(len(points) </span><span class="s2">&lt; </span><span class="s5">3</span><span class="s1">)</span><span class="s2">:</span><span class="s1"> 
+        </span><span class="s0">raise </span><span class="s1">Exception(</span><span class="s3">&quot;must have 3 points&quot;</span><span class="s1">) 
+    p1 </span><span class="s2">= </span><span class="s1">points[</span><span class="s5">0</span><span class="s1">] 
+    </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(</span><span class="s5">1</span><span class="s4">, </span><span class="s1">len(points) </span><span class="s2">- </span><span class="s5">1</span><span class="s1">)</span><span class="s2">:</span><span class="s1"> 
+        p2 </span><span class="s2">= </span><span class="s1">points[i] 
+        p3 </span><span class="s2">= </span><span class="s1">points[i </span><span class="s2">+ </span><span class="s5">1</span><span class="s1">] 
+        vecp1p2 </span><span class="s2">= </span><span class="s1">[p2[</span><span class="s5">0</span><span class="s1">] </span><span class="s2">- </span><span class="s1">p1[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p2[</span><span class="s5">1</span><span class="s1">] </span><span class="s2">- </span><span class="s1">p1[</span><span class="s5">1</span><span class="s1">]] 
+        vecp2p3 </span><span class="s2">= </span><span class="s1">[p3[</span><span class="s5">0</span><span class="s1">] </span><span class="s2">- </span><span class="s1">p2[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p3[</span><span class="s5">1</span><span class="s1">] </span><span class="s2">- </span><span class="s1">p2[</span><span class="s5">1</span><span class="s1">]] 
+        vecMult </span><span class="s2">= </span><span class="s1">vecp1p2[</span><span class="s5">0</span><span class="s1">] </span><span class="s2">* </span><span class="s1">vecp2p3[</span><span class="s5">1</span><span class="s1">] </span><span class="s2">- </span><span class="s1">vecp1p2[</span><span class="s5">1</span><span class="s1">] </span><span class="s2">* </span><span class="s1">vecp2p3[</span><span class="s5">0</span><span class="s1">] 
+        sign </span><span class="s2">= </span><span class="s5">0</span><span class="s1"> 
+        </span><span class="s0">if </span><span class="s1">(vecMult </span><span class="s2">&gt; </span><span class="s5">0</span><span class="s1">)</span><span class="s2">:</span><span class="s1"> 
+            sign </span><span class="s2">= </span><span class="s5">1</span><span class="s1"> 
+        </span><span class="s0">elif </span><span class="s1">(vecMult </span><span class="s2">&lt; </span><span class="s5">0</span><span class="s1">)</span><span class="s2">:</span><span class="s1"> 
+            sign </span><span class="s2">= -</span><span class="s5">1</span><span class="s1"> 
+        triArea </span><span class="s2">= </span><span class="s1">GetAreaOfTriangle(p1</span><span class="s4">, </span><span class="s1">p2</span><span class="s4">, </span><span class="s1">p3) </span><span class="s2">* </span><span class="s1">sign 
+        area </span><span class="s2">+= </span><span class="s1">triArea 
+    </span><span class="s0">return </span><span class="s1">abs(area) 
+ 
+ 
+</span><span class="s0">def </span><span class="s1">GetAreaOfTriangle(p1</span><span class="s4">, </span><span class="s1">p2</span><span class="s4">, </span><span class="s1">p3)</span><span class="s2">:</span><span class="s1"> 
+    area </span><span class="s2">= </span><span class="s5">0</span><span class="s1"> 
+    p1p2 </span><span class="s2">= </span><span class="s1">GetLineLength(p1</span><span class="s4">, </span><span class="s1">p2) 
+    p2p3 </span><span class="s2">= </span><span class="s1">GetLineLength(p2</span><span class="s4">, </span><span class="s1">p3) 
+    p3p1 </span><span class="s2">= </span><span class="s1">GetLineLength(p3</span><span class="s4">, </span><span class="s1">p1) 
+    s </span><span class="s2">= </span><span class="s1">(p1p2 </span><span class="s2">+ </span><span class="s1">p2p3 </span><span class="s2">+ </span><span class="s1">p3p1) </span><span class="s2">/ </span><span class="s5">2</span><span class="s1"> 
+    area </span><span class="s2">= </span><span class="s1">s </span><span class="s2">* </span><span class="s1">(s </span><span class="s2">- </span><span class="s1">p1p2) </span><span class="s2">* </span><span class="s1">(s </span><span class="s2">- </span><span class="s1">p2p3) </span><span class="s2">* </span><span class="s1">(s </span><span class="s2">- </span><span class="s1">p3p1) 
+    area </span><span class="s2">= </span><span class="s1">math.sqrt(area) 
+    </span><span class="s0">return </span><span class="s1">area 
+ 
+ 
+</span><span class="s0">def </span><span class="s1">GetLineLength(p1</span><span class="s4">, </span><span class="s1">p2)</span><span class="s2">:</span><span class="s1"> 
+    length </span><span class="s2">= </span><span class="s1">math.pow((p1[</span><span class="s5">0</span><span class="s1">] </span><span class="s2">- </span><span class="s1">p2[</span><span class="s5">0</span><span class="s1">])</span><span class="s4">, </span><span class="s5">2</span><span class="s1">) </span><span class="s2">+ </span><span class="s1">math.pow((p1[</span><span class="s5">1</span><span class="s1">] </span><span class="s2">- </span><span class="s1">p2[</span><span class="s5">1</span><span class="s1">])</span><span class="s4">, </span><span class="s5">2</span><span class="s1">) 
+    length </span><span class="s2">= </span><span class="s1">math.sqrt(length) 
+    </span><span class="s0">return </span><span class="s1">length 
+ 
+ 
+</span><span class="s0">def </span><span class="s1">iou_cal(imgA</span><span class="s4">, </span><span class="s1">imgA_color</span><span class="s4">, </span><span class="s1">ori_frame</span><span class="s4">, </span><span class="s1">M_resize2ori)</span><span class="s2">:</span><span class="s1"> 
+    imgA_tmp </span><span class="s2">= </span><span class="s1">imgA.copy() 
+ 
+    imgA_tmp </span><span class="s2">= </span><span class="s1">cv2.cvtColor(imgA_tmp</span><span class="s4">, </span><span class="s1">cv2.COLOR_BGR2GRAY) 
+ 
+    retA</span><span class="s4">, </span><span class="s1">imgA_tmp </span><span class="s2">= </span><span class="s1">cv2.threshold(imgA_tmp</span><span class="s4">, </span><span class="s5">127</span><span class="s4">, </span><span class="s5">255</span><span class="s4">, </span><span class="s1">cv2.THRESH_BINARY) 
+ 
+    _</span><span class="s4">,</span><span class="s1">contoursA</span><span class="s4">, </span><span class="s1">hierarchyA </span><span class="s2">= </span><span class="s1">cv2.findContours(imgA_tmp</span><span class="s4">, </span><span class="s1">cv2.RETR_EXTERNAL</span><span class="s4">, </span><span class="s1">cv2.CHAIN_APPROX_NONE) 
+ 
+    max_area </span><span class="s2">= </span><span class="s5">0  </span><span class="s6"># 找出最大面積</span><span class="s1"> 
+    index </span><span class="s2">= </span><span class="s5">0</span><span class="s1"> 
+    </span><span class="s0">for </span><span class="s1">cntA </span><span class="s0">in </span><span class="s1">range(len(contoursA))</span><span class="s2">:</span><span class="s1"> 
+        area </span><span class="s2">= </span><span class="s1">cv2.contourArea(contoursA[cntA]) 
+        </span><span class="s0">if </span><span class="s1">area </span><span class="s2">&gt; </span><span class="s1">max_area</span><span class="s2">:</span><span class="s1"> 
+            max_area </span><span class="s2">= </span><span class="s1">area 
+            index </span><span class="s2">= </span><span class="s1">cntA 
+ 
+    blank_img </span><span class="s2">= </span><span class="s1">np.zeros(imgA_tmp.shape</span><span class="s4">, </span><span class="s1">np.uint8) 
+    blank_img1 </span><span class="s2">= </span><span class="s1">np.zeros(imgA_tmp.shape</span><span class="s4">, </span><span class="s1">np.uint8) 
+    hull2 </span><span class="s2">= </span><span class="s1">cv2.convexHull(contoursA[index]) 
+    cv2.drawContours(blank_img1</span><span class="s4">, </span><span class="s1">[hull2]</span><span class="s4">, </span><span class="s5">0</span><span class="s4">, </span><span class="s1">(</span><span class="s5">255</span><span class="s4">, </span><span class="s5">255</span><span class="s4">, </span><span class="s5">255</span><span class="s1">)</span><span class="s4">, </span><span class="s1">cv2.FILLED</span><span class="s4">, </span><span class="s1">cv2.LINE_AA) 
+ 
+    a </span><span class="s2">= </span><span class="s1">cv2.cvtColor(blank_img1</span><span class="s4">, </span><span class="s1">cv2.COLOR_GRAY2BGR) 
+ 
+    epsilon </span><span class="s2">= </span><span class="s5">0.01 </span><span class="s2">* </span><span class="s1">cv2.arcLength(hull2</span><span class="s4">, </span><span class="s0">True</span><span class="s1">) 
+    approx </span><span class="s2">= </span><span class="s1">cv2.approxPolyDP(hull2</span><span class="s4">, </span><span class="s1">epsilon</span><span class="s4">, </span><span class="s0">True</span><span class="s1">) 
+    cv2.drawContours(a</span><span class="s4">, </span><span class="s1">approx</span><span class="s4">, </span><span class="s2">-</span><span class="s5">1</span><span class="s4">, </span><span class="s1">(</span><span class="s5">0</span><span class="s4">, </span><span class="s5">0</span><span class="s4">, </span><span class="s5">255</span><span class="s1">)</span><span class="s4">, </span><span class="s5">3</span><span class="s1">) 
+ 
+    </span><span class="s0">if </span><span class="s1">len(approx) </span><span class="s2">&gt; </span><span class="s5">4</span><span class="s2">:  </span><span class="s6"># 偵測出的點超過四點</span><span class="s1"> 
+        point_pairing </span><span class="s2">= </span><span class="s1">[]  </span><span class="s6"># 用來儲存配對點</span><span class="s1"> 
+        point_pairing_distance </span><span class="s2">= </span><span class="s1">[]  </span><span class="s6"># 用來記錄配對點之間的距離</span><span class="s1"> 
+        </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(len(approx))</span><span class="s2">:  </span><span class="s6"># 紀錄所有對角的配對點和距離</span><span class="s1"> 
+            left_p </span><span class="s2">= </span><span class="s1">i </span><span class="s2">- </span><span class="s5">1</span><span class="s1"> 
+            </span><span class="s0">if </span><span class="s1">left_p </span><span class="s2">&lt; </span><span class="s5">0</span><span class="s2">:</span><span class="s1"> 
+                left_p </span><span class="s2">= </span><span class="s1">len(approx) </span><span class="s2">- </span><span class="s5">1</span><span class="s1"> 
+            right_p </span><span class="s2">= </span><span class="s1">i </span><span class="s2">+ </span><span class="s5">1</span><span class="s1"> 
+            </span><span class="s0">if </span><span class="s1">right_p </span><span class="s2">&gt; </span><span class="s1">len(approx) </span><span class="s2">- </span><span class="s5">1</span><span class="s2">:</span><span class="s1"> 
+                right_p </span><span class="s2">= </span><span class="s5">0</span><span class="s1"> 
+            </span><span class="s0">for </span><span class="s1">j </span><span class="s0">in </span><span class="s1">range(len(approx))</span><span class="s2">:</span><span class="s1"> 
+                </span><span class="s0">if </span><span class="s1">j </span><span class="s2">!= </span><span class="s1">left_p </span><span class="s0">and </span><span class="s1">j </span><span class="s2">&gt; </span><span class="s1">i </span><span class="s0">and </span><span class="s1">j </span><span class="s2">!= </span><span class="s1">right_p</span><span class="s2">:  </span><span class="s6"># j &gt; i: 排除一樣的配對點</span><span class="s1"> 
+                    diff </span><span class="s2">= </span><span class="s1">approx[i] </span><span class="s2">- </span><span class="s1">approx[j] 
+                    lengh </span><span class="s2">= </span><span class="s1">math.hypot(diff[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">diff[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">1</span><span class="s1">]) 
+                    point_pairing.append([i</span><span class="s4">, </span><span class="s1">j</span><span class="s4">, </span><span class="s1">lengh]) 
+                    point_pairing_distance.append(lengh) 
+ 
+        point_pairing1 </span><span class="s2">= </span><span class="s1">point_pairing_distance.index(max(point_pairing_distance))  </span><span class="s6"># 紀錄具有最大距離的配對點index</span><span class="s1"> 
+ 
+        another_two_points </span><span class="s2">= </span><span class="s1">[]  </span><span class="s6"># 用來記錄其餘所有點的可能配對</span><span class="s1"> 
+        </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(len(approx))</span><span class="s2">:  </span><span class="s6"># 找出其餘所有點的可能配對</span><span class="s1"> 
+            </span><span class="s0">if </span><span class="s1">i </span><span class="s2">!= </span><span class="s1">point_pairing[point_pairing1][</span><span class="s5">0</span><span class="s1">] </span><span class="s0">and </span><span class="s1">i </span><span class="s2">!= </span><span class="s1">point_pairing[point_pairing1][</span><span class="s5">1</span><span class="s1">]</span><span class="s2">:</span><span class="s1"> 
+                </span><span class="s0">for </span><span class="s1">j </span><span class="s0">in </span><span class="s1">range(len(approx))</span><span class="s2">:</span><span class="s1"> 
+                    </span><span class="s0">if </span><span class="s1">j </span><span class="s2">!= </span><span class="s1">point_pairing[point_pairing1][</span><span class="s5">0</span><span class="s1">] </span><span class="s0">and </span><span class="s1">j </span><span class="s2">!= </span><span class="s1">point_pairing[point_pairing1][</span><span class="s5">1</span><span class="s1">] </span><span class="s0">and </span><span class="s1">j </span><span class="s2">&gt; </span><span class="s1">i</span><span class="s2">:</span><span class="s1"> 
+                        another_two_points.append([i</span><span class="s4">, </span><span class="s1">j]) 
+        max_area </span><span class="s2">= </span><span class="s5">0</span><span class="s1"> 
+        </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(len(another_two_points))</span><span class="s2">:  </span><span class="s6"># 將與配對點有相連接的配對點刪除，並找到四點組合面積最大的點配對</span><span class="s1"> 
+            points_array </span><span class="s2">= </span><span class="s1">np.array([[point_pairing[point_pairing1][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                                      point_pairing[point_pairing1][</span><span class="s5">1</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                                      another_two_points[i][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                                      another_two_points[i][</span><span class="s5">1</span><span class="s1">]]]</span><span class="s4">, </span><span class="s1">np.int) 
+            points_array_arg </span><span class="s2">= </span><span class="s1">np.argsort(points_array) 
+ 
+            p0_index </span><span class="s2">= </span><span class="s1">points_array[</span><span class="s5">0</span><span class="s1">][points_array_arg[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]] 
+            p1_index </span><span class="s2">= </span><span class="s1">points_array[</span><span class="s5">0</span><span class="s1">][points_array_arg[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">1</span><span class="s1">]] 
+            p2_index </span><span class="s2">= </span><span class="s1">points_array[</span><span class="s5">0</span><span class="s1">][points_array_arg[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">2</span><span class="s1">]] 
+            p3_index </span><span class="s2">= </span><span class="s1">points_array[</span><span class="s5">0</span><span class="s1">][points_array_arg[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">3</span><span class="s1">]] 
+ 
+            points_list </span><span class="s2">= </span><span class="s1">[approx[p0_index][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                           approx[p1_index][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                           approx[p2_index][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                           approx[p3_index][</span><span class="s5">0</span><span class="s1">]] 
+            area </span><span class="s2">= </span><span class="s1">GetAreaOfPolyGon(points_list) 
+            </span><span class="s0">if </span><span class="s1">area </span><span class="s2">&gt; </span><span class="s1">max_area</span><span class="s2">:</span><span class="s1"> 
+                max_area </span><span class="s2">= </span><span class="s1">area 
+                final_four_points_index </span><span class="s2">= </span><span class="s1">[p0_index</span><span class="s4">, </span><span class="s1">p1_index</span><span class="s4">, </span><span class="s1">p2_index</span><span class="s4">, </span><span class="s1">p3_index] 
+ 
+        four_points </span><span class="s2">= </span><span class="s1">np.array( 
+            [approx[final_four_points_index[</span><span class="s5">0</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[final_four_points_index[</span><span class="s5">1</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[final_four_points_index[</span><span class="s5">2</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[final_four_points_index[</span><span class="s5">3</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+ 
+        point_int </span><span class="s2">= </span><span class="s1">np.array( 
+            [approx[final_four_points_index[</span><span class="s5">0</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[final_four_points_index[</span><span class="s5">1</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[final_four_points_index[</span><span class="s5">2</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[final_four_points_index[</span><span class="s5">3</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.int) 
+ 
+        a </span><span class="s2">= </span><span class="s1">np.zeros((</span><span class="s5">256</span><span class="s4">,</span><span class="s5">256</span><span class="s4">,</span><span class="s5">3</span><span class="s1">)</span><span class="s4">, </span><span class="s1">np.uint8) 
+        b </span><span class="s2">= </span><span class="s1">imgA_color.copy() 
+        imgA_tmp2 </span><span class="s2">= </span><span class="s1">cv2.polylines(b</span><span class="s4">, </span><span class="s1">[point_int]</span><span class="s4">, </span><span class="s0">True</span><span class="s4">, </span><span class="s1">(</span><span class="s5">0</span><span class="s4">,</span><span class="s5">0</span><span class="s4">,</span><span class="s5">255</span><span class="s1">)</span><span class="s4">, </span><span class="s5">2</span><span class="s4">, </span><span class="s1">cv2.LINE_AA) 
+        imgA_tmp3 </span><span class="s2">= </span><span class="s1">cv2.fillPoly(a</span><span class="s4">, </span><span class="s1">[point_int]</span><span class="s4">, </span><span class="s1">(</span><span class="s5">255</span><span class="s4">,</span><span class="s5">255</span><span class="s4">,</span><span class="s5">255</span><span class="s1">)</span><span class="s4">, </span><span class="s1">cv2.LINE_AA) 
+ 
+        p0_p1 </span><span class="s2">= </span><span class="s1">(four_points[</span><span class="s5">0</span><span class="s1">] </span><span class="s2">- </span><span class="s1">four_points[</span><span class="s5">1</span><span class="s1">]) 
+        p1_p2 </span><span class="s2">= </span><span class="s1">(four_points[</span><span class="s5">1</span><span class="s1">] </span><span class="s2">- </span><span class="s1">four_points[</span><span class="s5">2</span><span class="s1">]) 
+        p2_p3 </span><span class="s2">= </span><span class="s1">(four_points[</span><span class="s5">2</span><span class="s1">] </span><span class="s2">- </span><span class="s1">four_points[</span><span class="s5">3</span><span class="s1">]) 
+        p3_p0 </span><span class="s2">= </span><span class="s1">(four_points[</span><span class="s5">3</span><span class="s1">] </span><span class="s2">- </span><span class="s1">four_points[</span><span class="s5">0</span><span class="s1">]) 
+ 
+ 
+        lengh1 </span><span class="s2">= </span><span class="s1">math.hypot(p0_p1[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p0_p1[</span><span class="s5">1</span><span class="s1">]) </span><span class="s2">+ </span><span class="s1">math.hypot(p2_p3[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p2_p3[</span><span class="s5">1</span><span class="s1">]) 
+ 
+        lengh2 </span><span class="s2">= </span><span class="s1">math.hypot(p1_p2[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p1_p2[</span><span class="s5">1</span><span class="s1">]) </span><span class="s2">+ </span><span class="s1">math.hypot(p3_p0[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p3_p0[</span><span class="s5">1</span><span class="s1">]) 
+ 
+        </span><span class="s0">if </span><span class="s1">lengh1 </span><span class="s2">&gt; </span><span class="s1">lengh2</span><span class="s2">:</span><span class="s1"> 
+            four_points </span><span class="s2">= </span><span class="s1">np.array( 
+                [approx[final_four_points_index[</span><span class="s5">3</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                 approx[final_four_points_index[</span><span class="s5">0</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                 approx[final_four_points_index[</span><span class="s5">1</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                 approx[final_four_points_index[</span><span class="s5">2</span><span class="s1">]][</span><span class="s5">0</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+ 
+        z </span><span class="s2">= </span><span class="s1">np.ones((</span><span class="s5">4</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">, </span><span class="s1">np.float32) 
+        four_points_tmp </span><span class="s2">= </span><span class="s1">np.concatenate((four_points</span><span class="s4">, </span><span class="s1">z)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+        four_points_tmp_trans </span><span class="s2">= </span><span class="s1">four_points_tmp.transpose() 
+        four_points </span><span class="s2">= </span><span class="s1">np.matmul(M_resize2ori</span><span class="s4">, </span><span class="s1">four_points_tmp_trans) 
+        four_points_op_t </span><span class="s2">= </span><span class="s1">four_points.transpose() 
+        four_points </span><span class="s2">= </span><span class="s1">np.array([[round((four_points_op_t[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">0</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">,</span><span class="s1"> 
+                                       round((four_points_op_t[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">1</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)]</span><span class="s4">,</span><span class="s1"> 
+                                      [round((four_points_op_t[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">0</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">,</span><span class="s1"> 
+                                       round((four_points_op_t[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">1</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)]</span><span class="s4">,</span><span class="s1"> 
+                                      [round((four_points_op_t[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">0</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">,</span><span class="s1"> 
+                                       round((four_points_op_t[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">1</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)]</span><span class="s4">,</span><span class="s1"> 
+                                      [round((four_points_op_t[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">0</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">,</span><span class="s1"> 
+                                       round((four_points_op_t[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">1</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)]]</span><span class="s4">, </span><span class="s1">np.float32) 
+ 
+        dst </span><span class="s2">= </span><span class="s1">np.array([[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">224</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">224</span><span class="s4">, </span><span class="s5">448</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">448</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+        M </span><span class="s2">= </span><span class="s1">cv2.getPerspectiveTransform(four_points</span><span class="s4">, </span><span class="s1">dst) 
+        warp </span><span class="s2">= </span><span class="s1">cv2.warpPerspective(ori_frame</span><span class="s4">, </span><span class="s1">M</span><span class="s4">, </span><span class="s1">(</span><span class="s5">224</span><span class="s4">, </span><span class="s5">448</span><span class="s1">)) 
+ 
+    </span><span class="s0">elif </span><span class="s1">len(approx) </span><span class="s2">== </span><span class="s5">4</span><span class="s2">:</span><span class="s1"> 
+        four_points </span><span class="s2">= </span><span class="s1">np.array( 
+            [approx[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+ 
+        point_int </span><span class="s2">= </span><span class="s1">np.array( 
+            [approx[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+             approx[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.int) 
+ 
+        a </span><span class="s2">= </span><span class="s1">np.zeros((</span><span class="s5">256</span><span class="s4">, </span><span class="s5">256</span><span class="s4">, </span><span class="s5">3</span><span class="s1">)</span><span class="s4">, </span><span class="s1">np.uint8) 
+        b </span><span class="s2">= </span><span class="s1">imgA_color.copy() 
+        imgA_tmp2 </span><span class="s2">= </span><span class="s1">cv2.polylines(b</span><span class="s4">, </span><span class="s1">[point_int]</span><span class="s4">, </span><span class="s0">True</span><span class="s4">, </span><span class="s1">(</span><span class="s5">0</span><span class="s4">, </span><span class="s5">0</span><span class="s4">, </span><span class="s5">255</span><span class="s1">)</span><span class="s4">, </span><span class="s5">2</span><span class="s4">, </span><span class="s1">cv2.LINE_AA) 
+        imgA_tmp3 </span><span class="s2">= </span><span class="s1">cv2.fillPoly(a</span><span class="s4">, </span><span class="s1">[point_int]</span><span class="s4">, </span><span class="s1">(</span><span class="s5">255</span><span class="s4">, </span><span class="s5">255</span><span class="s4">, </span><span class="s5">255</span><span class="s1">)</span><span class="s4">, </span><span class="s1">cv2.LINE_AA) 
+ 
+        p0_p1 </span><span class="s2">= </span><span class="s1">(four_points[</span><span class="s5">0</span><span class="s1">] </span><span class="s2">- </span><span class="s1">four_points[</span><span class="s5">1</span><span class="s1">]) 
+        p1_p2 </span><span class="s2">= </span><span class="s1">(four_points[</span><span class="s5">1</span><span class="s1">] </span><span class="s2">- </span><span class="s1">four_points[</span><span class="s5">2</span><span class="s1">]) 
+        p2_p3 </span><span class="s2">= </span><span class="s1">(four_points[</span><span class="s5">2</span><span class="s1">] </span><span class="s2">- </span><span class="s1">four_points[</span><span class="s5">3</span><span class="s1">]) 
+        p3_p0 </span><span class="s2">= </span><span class="s1">(four_points[</span><span class="s5">3</span><span class="s1">] </span><span class="s2">- </span><span class="s1">four_points[</span><span class="s5">0</span><span class="s1">]) 
+ 
+        lengh1 </span><span class="s2">= </span><span class="s1">math.hypot(p0_p1[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p0_p1[</span><span class="s5">1</span><span class="s1">]) </span><span class="s2">+ </span><span class="s1">math.hypot(p2_p3[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p2_p3[</span><span class="s5">1</span><span class="s1">]) 
+ 
+        lengh2 </span><span class="s2">= </span><span class="s1">math.hypot(p1_p2[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p1_p2[</span><span class="s5">1</span><span class="s1">]) </span><span class="s2">+ </span><span class="s1">math.hypot(p3_p0[</span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">p3_p0[</span><span class="s5">1</span><span class="s1">]) 
+ 
+        </span><span class="s0">if </span><span class="s1">lengh1 </span><span class="s2">&gt; </span><span class="s1">lengh2</span><span class="s2">:</span><span class="s1"> 
+            four_points </span><span class="s2">= </span><span class="s1">np.array( 
+                [approx[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                 approx[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                 approx[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]</span><span class="s4">,</span><span class="s1"> 
+                 approx[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">0</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+ 
+        z </span><span class="s2">= </span><span class="s1">np.ones((</span><span class="s5">4</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">, </span><span class="s1">np.float32) 
+        four_points_tmp </span><span class="s2">= </span><span class="s1">np.concatenate((four_points</span><span class="s4">, </span><span class="s1">z)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+        four_points_tmp_trans </span><span class="s2">= </span><span class="s1">four_points_tmp.transpose() 
+        four_points </span><span class="s2">= </span><span class="s1">np.matmul(M_resize2ori</span><span class="s4">, </span><span class="s1">four_points_tmp_trans) 
+        four_points_op_t </span><span class="s2">= </span><span class="s1">four_points.transpose() 
+        four_points </span><span class="s2">= </span><span class="s1">np.array([[round((four_points_op_t[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">0</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">,</span><span class="s1"> 
+                                 round((four_points_op_t[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">1</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">0</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)]</span><span class="s4">,</span><span class="s1"> 
+                                [round((four_points_op_t[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">0</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">,</span><span class="s1"> 
+                                 round((four_points_op_t[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">1</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">1</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)]</span><span class="s4">,</span><span class="s1"> 
+                                [round((four_points_op_t[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">0</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">,</span><span class="s1"> 
+                                 round((four_points_op_t[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">1</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">2</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)]</span><span class="s4">,</span><span class="s1"> 
+                                [round((four_points_op_t[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">0</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)</span><span class="s4">,</span><span class="s1"> 
+                                 round((four_points_op_t[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">1</span><span class="s1">] </span><span class="s2">/ </span><span class="s1">four_points_op_t[</span><span class="s5">3</span><span class="s1">][</span><span class="s5">2</span><span class="s1">])</span><span class="s4">, </span><span class="s5">1</span><span class="s1">)]]</span><span class="s4">, </span><span class="s1">np.float32) 
+ 
+        dst </span><span class="s2">= </span><span class="s1">np.array([[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">224</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">224</span><span class="s4">, </span><span class="s5">448</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">448</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+        M </span><span class="s2">= </span><span class="s1">cv2.getPerspectiveTransform(four_points</span><span class="s4">, </span><span class="s1">dst) 
+        warp </span><span class="s2">= </span><span class="s1">cv2.warpPerspective(ori_frame</span><span class="s4">, </span><span class="s1">M</span><span class="s4">, </span><span class="s1">(</span><span class="s5">224</span><span class="s4">, </span><span class="s5">448</span><span class="s1">)) 
+ 
+ 
+    </span><span class="s0">elif </span><span class="s1">len(approx) </span><span class="s2">&lt; </span><span class="s5">4</span><span class="s2">:</span><span class="s1"> 
+        warp </span><span class="s2">= </span><span class="s1">np.zeros((</span><span class="s5">224</span><span class="s4">, </span><span class="s5">448</span><span class="s4">, </span><span class="s5">3</span><span class="s1">)</span><span class="s4">, </span><span class="s1">np.uint8) 
+        imgA_tmp3 </span><span class="s2">= </span><span class="s1">np.zeros((</span><span class="s5">256</span><span class="s4">, </span><span class="s5">256</span><span class="s4">, </span><span class="s5">3</span><span class="s1">)</span><span class="s4">, </span><span class="s1">np.uint8) 
+ 
+    </span><span class="s0">return </span><span class="s1">warp</span><span class="s4">, </span><span class="s1">imgA_tmp3</span><span class="s4">, </span><span class="s1">imgA_tmp2 
+ 
+ 
+</span><span class="s0">def </span><span class="s1">main(_)</span><span class="s2">:</span><span class="s1"> 
+    </span><span class="s0">if not </span><span class="s1">os.path.exists(args.checkpoint_dir)</span><span class="s2">:</span><span class="s1"> 
+        os.makedirs(args.checkpoint_dir) 
+    </span><span class="s0">if not </span><span class="s1">os.path.exists(args.sample_dir)</span><span class="s2">:</span><span class="s1"> 
+        os.makedirs(args.sample_dir) 
+    </span><span class="s0">if not </span><span class="s1">os.path.exists(args.test_dir)</span><span class="s2">:</span><span class="s1"> 
+        os.makedirs(args.test_dir) 
+ 
+    </span><span class="s0">with </span><span class="s1">tf.Session() </span><span class="s0">as </span><span class="s1">sess</span><span class="s2">:</span><span class="s1"> 
+        model </span><span class="s2">= </span><span class="s1">pix2pix(sess</span><span class="s4">, </span><span class="s1">image_size</span><span class="s2">=</span><span class="s1">args.fine_size</span><span class="s4">, </span><span class="s1">batch_size</span><span class="s2">=</span><span class="s1">args.batch_size</span><span class="s4">,</span><span class="s1"> 
+                        output_size</span><span class="s2">=</span><span class="s1">args.fine_size</span><span class="s4">, </span><span class="s1">dataset_name</span><span class="s2">=</span><span class="s1">args.dataset_name</span><span class="s4">,</span><span class="s1"> 
+                        checkpoint_dir</span><span class="s2">=</span><span class="s1">args.checkpoint_dir</span><span class="s4">, </span><span class="s1">sample_dir</span><span class="s2">=</span><span class="s1">args.sample_dir) 
+ 
+        </span><span class="s0">if </span><span class="s1">args.phase </span><span class="s2">== </span><span class="s3">'train'</span><span class="s2">:</span><span class="s1"> 
+            model.train(args) 
+        </span><span class="s0">elif </span><span class="s1">args.phase </span><span class="s2">== </span><span class="s3">'test'</span><span class="s2">:</span><span class="s1"> 
+            model.test(args) 
+        </span><span class="s0">elif </span><span class="s1">args.phase </span><span class="s2">== </span><span class="s3">'demo'</span><span class="s2">:</span><span class="s1"> 
+            model.demo(args</span><span class="s4">, </span><span class="s5">0</span><span class="s4">, </span><span class="s5">0</span><span class="s4">, </span><span class="s0">True</span><span class="s1">) 
+            cap0 </span><span class="s2">= </span><span class="s1">cv2.VideoCapture(</span><span class="s5">2</span><span class="s1">) 
+            cap1 </span><span class="s2">= </span><span class="s1">cv2.VideoCapture(</span><span class="s5">0</span><span class="s1">) 
+ 
+            video_out_path </span><span class="s2">= </span><span class="s3">&quot;/home/ee303/workspace2019/pix2pix-tensorflow-master/demo.mp4&quot;</span><span class="s1"> 
+            input_path </span><span class="s2">= </span><span class="s3">&quot;./test&quot;</span><span class="s1"> 
+            src </span><span class="s2">= </span><span class="s1">np.array([[</span><span class="s5">224</span><span class="s4">, </span><span class="s5">448</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">448</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">224</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+            dst </span><span class="s2">= </span><span class="s1">np.array([[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">224</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">224</span><span class="s4">, </span><span class="s5">448</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">448</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+            M_flip </span><span class="s2">= </span><span class="s1">cv2.getPerspectiveTransform(src</span><span class="s4">, </span><span class="s1">dst) 
+ 
+            ori_frame_size </span><span class="s2">= </span><span class="s1">np.array([[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">640</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">640</span><span class="s4">, </span><span class="s5">480</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">480</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+            resize_frame_size </span><span class="s2">= </span><span class="s1">np.array([[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">256</span><span class="s4">, </span><span class="s5">0</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">256</span><span class="s4">, </span><span class="s5">256</span><span class="s1">]</span><span class="s4">, </span><span class="s1">[</span><span class="s5">0</span><span class="s4">, </span><span class="s5">256</span><span class="s1">]]</span><span class="s4">, </span><span class="s1">np.float32) 
+            M_resize2ori </span><span class="s2">= </span><span class="s1">cv2.getPerspectiveTransform(resize_frame_size</span><span class="s4">, </span><span class="s1">ori_frame_size) 
+            </span><span class="s0">while </span><span class="s1">(</span><span class="s0">True</span><span class="s1">)</span><span class="s2">:</span><span class="s1"> 
+                ret0</span><span class="s4">, </span><span class="s1">frame0 </span><span class="s2">= </span><span class="s1">cap0.read() 
+                </span><span class="s0">assert </span><span class="s1">ret0 
+                ret1</span><span class="s4">, </span><span class="s1">frame1 </span><span class="s2">= </span><span class="s1">cap1.read() 
+                </span><span class="s0">assert </span><span class="s1">ret1 
+ 
+                img </span><span class="s2">= </span><span class="s1">np.zeros((</span><span class="s5">256</span><span class="s4">,</span><span class="s5">256</span><span class="s4">,</span><span class="s5">3</span><span class="s1">)</span><span class="s4">, </span><span class="s1">np.uint8) 
+                img1 </span><span class="s2">= </span><span class="s1">cv2.resize(frame0</span><span class="s4">, </span><span class="s1">(</span><span class="s5">256</span><span class="s4">, </span><span class="s5">256</span><span class="s1">)</span><span class="s4">, </span><span class="s1">cv2.INTER_AREA) 
+                img2 </span><span class="s2">= </span><span class="s1">cv2.resize(frame1</span><span class="s4">, </span><span class="s1">(</span><span class="s5">256</span><span class="s4">, </span><span class="s5">256</span><span class="s1">)</span><span class="s4">, </span><span class="s1">cv2.INTER_AREA) 
+ 
+                </span><span class="s6"># result = np.concatenate((img1, img2), axis=1)</span><span class="s1"> 
+                result1 </span><span class="s2">= </span><span class="s1">np.concatenate((img</span><span class="s4">, </span><span class="s1">img1)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+                result2 </span><span class="s2">= </span><span class="s1">np.concatenate((img</span><span class="s4">, </span><span class="s1">img2)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+ 
+                model.demo(args</span><span class="s4">, </span><span class="s1">result1</span><span class="s4">, </span><span class="s1">result2</span><span class="s4">, </span><span class="s0">False</span><span class="s1">) 
+ 
+                img1_pre </span><span class="s2">= </span><span class="s1">cv2.imread(</span><span class="s3">&quot;{}/test_0001.png&quot;</span><span class="s1">.format(input_path)) 
+                img2_pre </span><span class="s2">= </span><span class="s1">cv2.imread(</span><span class="s3">&quot;{}/test_0002.png&quot;</span><span class="s1">.format(input_path)) 
+ 
+ 
+                img1_cal</span><span class="s4">, </span><span class="s1">img1_p</span><span class="s4">, </span><span class="s1">img1_c </span><span class="s2">= </span><span class="s1">iou_cal(img1_pre</span><span class="s4">, </span><span class="s1">img1</span><span class="s4">, </span><span class="s1">frame0</span><span class="s4">, </span><span class="s1">M_resize2ori) 
+                img2_cal</span><span class="s4">, </span><span class="s1">img2_p</span><span class="s4">, </span><span class="s1">img2_c </span><span class="s2">= </span><span class="s1">iou_cal(img2_pre</span><span class="s4">, </span><span class="s1">img2</span><span class="s4">, </span><span class="s1">frame1</span><span class="s4">, </span><span class="s1">M_resize2ori) 
+                img2_cal </span><span class="s2">= </span><span class="s1">cv2.warpPerspective(img2_cal</span><span class="s4">, </span><span class="s1">M_flip</span><span class="s4">, </span><span class="s1">(</span><span class="s5">224</span><span class="s4">, </span><span class="s5">448</span><span class="s1">)) 
+ 
+ 
+                result3 </span><span class="s2">= </span><span class="s1">np.concatenate((img1_pre</span><span class="s4">, </span><span class="s1">img2_pre)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+                result4 </span><span class="s2">= </span><span class="s1">np.concatenate((img1_cal</span><span class="s4">, </span><span class="s1">img2_cal)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+                result5 </span><span class="s2">= </span><span class="s1">np.concatenate((img1_p</span><span class="s4">, </span><span class="s1">img2_p)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+                result6 </span><span class="s2">= </span><span class="s1">np.concatenate((img1_c</span><span class="s4">, </span><span class="s1">img2_c)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+ 
+                result7 </span><span class="s2">= </span><span class="s1">np.concatenate((result6</span><span class="s4">, </span><span class="s1">result3)) 
+                result7 </span><span class="s2">= </span><span class="s1">np.concatenate((result7</span><span class="s4">, </span><span class="s1">result5)) 
+                blank </span><span class="s2">= </span><span class="s1">np.zeros((</span><span class="s5">448</span><span class="s4">, </span><span class="s5">320</span><span class="s4">, </span><span class="s5">3</span><span class="s1">)</span><span class="s4">, </span><span class="s1">np.uint8) 
+                result4 </span><span class="s2">= </span><span class="s1">np.concatenate((result4</span><span class="s4">, </span><span class="s1">blank)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+                blank </span><span class="s2">= </span><span class="s1">np.zeros((</span><span class="s5">320</span><span class="s4">, </span><span class="s5">768</span><span class="s4">, </span><span class="s5">3</span><span class="s1">)</span><span class="s4">, </span><span class="s1">np.uint8) 
+                result4 </span><span class="s2">= </span><span class="s1">np.concatenate((result4</span><span class="s4">, </span><span class="s1">blank)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">0</span><span class="s1">) 
+                result8 </span><span class="s2">= </span><span class="s1">np.concatenate((result7</span><span class="s4">, </span><span class="s1">result4)</span><span class="s4">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s5">1</span><span class="s1">) 
+                </span><span class="s6"># cv2.imshow(&quot;0&quot;, result)</span><span class="s1"> 
+                cv2.imshow(</span><span class="s3">&quot;1&quot;</span><span class="s4">, </span><span class="s1">result8) 
+                </span><span class="s6"># cv2.imshow(&quot;2&quot;, result4)</span><span class="s1"> 
+ 
+                key </span><span class="s2">= </span><span class="s1">cv2.waitKey(</span><span class="s5">30</span><span class="s1">) </span><span class="s2">&amp; </span><span class="s5">0xFF</span><span class="s1"> 
+                </span><span class="s0">if </span><span class="s1">(key </span><span class="s2">== </span><span class="s5">27</span><span class="s1">)</span><span class="s2">:</span><span class="s1"> 
+                    cap0.release() 
+                    cap1.release()                 
+                    cv2.destroyAllWindows() 
+                    </span><span class="s0">break</span><span class="s1"> 
+ 
+            </span><span class="s6"># model.demo(args)</span><span class="s1"> 
+ 
+ 
+</span><span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span><span class="s1"> 
+    tf.app.run() 
+</span></pre>
+</body>
+</html>
